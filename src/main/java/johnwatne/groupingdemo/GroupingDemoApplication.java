@@ -29,12 +29,27 @@ public class GroupingDemoApplication {
 		uta2.setParcels(Arrays.asList(parcel21, parcel23));
 		testSubmission.setUtas(Arrays.asList(uta1, uta2));
 
-		final List<Entry<CountyParcelGrouping, Long>> duplicateParcels = testSubmission.getUtas().stream()
-				.flatMap(u -> u.getParcels().stream())
+		final List<Entry<CountyParcelGrouping, Long>> duplicateParcels = testSubmission.getUtas().parallelStream()
+				.flatMap(u -> u.getParcels().parallelStream())
 				.map(p -> new CountyParcelGrouping(p.getParentUta().getCountyCode(), p.getParcelId()))
-				.collect(Collectors.groupingBy(Function.identity(), Collectors.counting())).entrySet().stream()
+				.collect(Collectors.groupingBy(Function.identity(), Collectors.counting())).entrySet().parallelStream()
 				.filter(x -> x.getValue() > 1).toList();
 
+		printDuplicates(duplicateParcels);
+
+		System.out.println(
+				"*** Second pass: find duplicates without assuming elements can reference their parent elements ***");
+
+		final List<Entry<CountyParcelGrouping, Long>> duplicates2 = testSubmission.getUtas().stream()
+				.flatMap(u -> u.getParcels().parallelStream()
+						.map(p -> new CountyParcelGrouping(u.getCountyCode(), p.getParcelId())))
+				.collect(Collectors.groupingBy(Function.identity(), Collectors.counting())).entrySet().parallelStream()
+				.filter(x -> x.getValue() > 1).toList();
+
+		printDuplicates(duplicates2);
+	}
+
+	private static void printDuplicates(final List<Entry<CountyParcelGrouping, Long>> duplicateParcels) {
 		if (duplicateParcels.size() > 0) {
 			System.out.println("Duplicate parcels found!");
 			duplicateParcels.forEach(p -> {
